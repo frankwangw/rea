@@ -37,7 +37,7 @@ Parameters:
     Description: Select the key to deploy for the stack
 
   WebInstanceType:
-    Description: ami id
+    Description: instance type
     Type: String
 Resources:
 
@@ -136,7 +136,7 @@ Resources:
       Type: AWS::EC2::SecurityGroup
       Properties:
         GroupDescription: ELB moodle SG
-        VpcId: !Ref Vpcid
+        VpcId: !Ref VpcId
         SecurityGroupIngress:
           - IpProtocol: tcp
             FromPort: 9292
@@ -150,8 +150,8 @@ Resources:
         HealthCheckGracePeriod: 120
         HealthCheckType: ELB
         LaunchConfigurationName: !Ref LaunchConfig
-        MaxSize: !Ref MaxSize
-        MinSize: !Ref MinSize
+        MaxSize: !Ref WebAsgMax
+        MinSize: !Ref WebAsgMin
         Tags:
           -
            Key: StackName
@@ -160,16 +160,16 @@ Resources:
         TargetGroupARNs:
           - !GetAtt Elbsg.GroupId
         VPCZoneIdentifier:
-          - !Ref Subnet1
-          - !Ref Subnet2
+          - !Ref subnet1
+          - !Ref subnet2
   LaunchConfig:
       Type: AWS::AutoScaling::LaunchConfiguration
       Properties:
         IamInstanceProfile: !Ref ServerProfile
-        ImageId: !Ref AMI
+        ImageId: !Ref BaseAMI
         InstanceMonitoring: true
-        InstanceType: !Ref InstanceSize
-        KeyName: !Ref Key
+        InstanceType: !Ref WebInstanceType
+        KeyName: !Ref KeyPairs
         SecurityGroups:
            - !Ref webSG
         UserData:
