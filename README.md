@@ -39,19 +39,13 @@ Autoscaling group
 
 **Code / Documentation layout.**
 
-
-the cloudformation are nest together.
-
-0_Main_interface is using to invoke from aws console.
-
-1_ALB_layer will create alb targrate group and lisnter and and SG which attach to elb.
-
-2_service_laer will create all the commpontes for server app.
+cloudformation folder is aws cloudformation template which will build resource on aws 
+makefile is install script
 
 **Ease of deployment.**
 
-
-easy just inovke the 0_main_interface in aws cloudformation console and input all the parameters and stack will build .
+just modfiy the parameter in makefile and run 
+make install
 
 
 **Test**

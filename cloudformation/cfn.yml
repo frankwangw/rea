@@ -1,0 +1,245 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: ---main stack
+Metadata:
+    AWS::Cloudformation::Interface:
+      ParameterGroup:
+      - Label:
+          default: Network Settings
+        Parameters:
+          - VpcId
+          - PSubnet1
+          - PSubnet2
+          - Subnet1
+          - Subnet2
+      - Label:
+          default: Cfn Bucket Name
+        Parameters:
+          - bucketName
+      - Label:
+          default: Applilcation Layer Settings
+        Parameters:
+          - BaseAMI
+          - WebInstanceType
+          - WebAsgMin
+          - WebAsgMax
+          - Key
+
+      ParameterLabels:
+       VpcId:
+         default: The Vpc ID where this stack deploy
+       bucketName:
+         default: where you upload your cfn
+       Psubnet1:
+         default: Public subnet 1 for ALB
+       Psubnet2:
+         default: Public subnet 2 for ALB
+       subnet1:
+         default: private subnet 1 which web server launching in
+       subnet2:
+         default: private subnet 2 which web server launching in
+       BaseAMI:
+         default: Base AMI which will using by Web server
+       WebInstanceType:
+         default: moodle server size
+       WebAsgMin:
+         default: Specifies the minimum number of EC2 instances in the Web Autoscaling Group
+       WebAsgMax:
+         default: Specifies the maximum number of EC2 instances in the Web Autoscaling Group
+       Key:
+         default: ec2 key
+Parameters:
+
+  VpcId:
+    Description: Vpc Id
+    Type: String
+
+  Psubnet1:
+    Description: Public SubnetID
+    Type: String
+  Psubnet2:
+    Description: Public SubnetID
+    Type: String
+
+  subnet1:
+    Description: Private SubnetID
+    Type: String
+  subnet2:
+    Description: Private SubnetID
+    Type: String
+  BaseAMI:
+    Description: ami id
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+  WebAsgMin:
+    Description: min number in asg
+    Type: String
+    Default: 1
+  WebAsgMax:
+    Description: min number in asg
+    Type: String
+    Default: 1
+  KeyPairs:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Select the key to deploy for the stack
+
+  WebInstanceType:
+    Description: ami id
+    Type: String
+Resources:
+
+  albListener:
+      Type : AWS::ElasticLoadBalancingV2::Listener
+      Properties:
+        DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref albTargetGroup
+        LoadBalancerArn: !Ref alb
+        Port: 80
+        Protocol: HTTP
+  albTargetGroup:
+      Type: AWS::ElasticLoadBalancingV2::TargetGroup
+      Properties:
+       HealthCheckIntervalSeconds: 60
+       HealthCheckPath: /
+       HealthCheckTimeoutSeconds: 5
+       Name: !Join [ '', [ 'AP-', !Ref VpcId ] ]
+       Port: 9292
+       Protocol: HTTP
+       Tags:
+       - Key: StackName
+         Value: rea
+       UnhealthyThresholdCount: 5
+       HealthyThresholdCount: 2
+       VpcId: !Ref VpcId
+  alb:
+      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Properties:
+        Scheme: internet-facing
+        Subnets:
+          - !Ref Psubnet1
+          - !Ref Psubnet2
+        LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: 60
+        SecurityGroups:
+        - !Ref Elbsg
+        Tags:
+        - Key: StackName
+          Value: rea
+  Elbsg:
+       Type: AWS::EC2::SecurityGroup
+       Properties:
+         GroupDescription: elb SG
+         VpcId: !Ref VpcId
+         SecurityGroupIngress:
+           - IpProtocol: tcp
+             FromPort: 80
+             ToPort: 80
+             CidrIp: 0.0.0.0/0
+             Description: web access
+         Tags:
+           - Key: StackName
+             Value: rea
+
+  ServerProfile:
+      Type: AWS::IAM::InstanceProfile
+      Properties:
+        Path: /
+        Roles:
+          - !Ref Role
+  Role:
+      Type: AWS::IAM::Role
+      Properties:
+        Path: /
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - ec2.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: log
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                    - logs:DescribeLogStreams
+                    - cloudformation:SignalResource
+                  Resource: "*"
+  logs:
+      Type: AWS::Logs::LogGroup
+      DeletionPolicy: Retain
+      Properties:
+        RetentionInDays: 7
+  webSG:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: ELB moodle SG
+        VpcId: !Ref Vpcid
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 9292
+            ToPort: 9292
+            SourceSecurityGroupId: !GetAtt Elbsg.GroupId
+            Description: Allow traffic from elb
+  AutoScalingGroup:
+      Type: AWS::AutoScaling::AutoScalingGroup
+      Properties:
+        Cooldown: 60
+        HealthCheckGracePeriod: 120
+        HealthCheckType: ELB
+        LaunchConfigurationName: !Ref LaunchConfig
+        MaxSize: !Ref MaxSize
+        MinSize: !Ref MinSize
+        Tags:
+          -
+           Key: StackName
+           Value: rea
+           PropagateAtLaunch: true
+        TargetGroupARNs:
+          - !GetAtt Elbsg.GroupId
+        VPCZoneIdentifier:
+          - !Ref Subnet1
+          - !Ref Subnet2
+  LaunchConfig:
+      Type: AWS::AutoScaling::LaunchConfiguration
+      Properties:
+        IamInstanceProfile: !Ref ServerProfile
+        ImageId: !Ref AMI
+        InstanceMonitoring: true
+        InstanceType: !Ref InstanceSize
+        KeyName: !Ref Key
+        SecurityGroups:
+           - !Ref webSG
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -ex
+
+            #install git 
+            yum install git -y
+
+            #update ruby 
+            curl -sSL https://get.rvm.io | bash
+            source /etc/profile.d/rvm.sh
+            rvm install "ruby-2.4.9"
+
+            # install dependendies
+            gem install bundle
+            
+
+            # download app code and run
+            cd /opt/
+            sudo git clone https://github.com/rea-cruitment/simple-sinatra-app
+            cd simple-sinatra-app
+            bundle install
+            bundle exec rackup
+
+
+
