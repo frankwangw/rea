@@ -1,52 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: ---main stack
-Metadata:
-    AWS::Cloudformation::Interface:
-      ParameterGroup:
-      - Label:
-          default: Network Settings
-        Parameters:
-          - VpcId
-          - PSubnet1
-          - PSubnet2
-          - Subnet1
-          - Subnet2
-      - Label:
-          default: Cfn Bucket Name
-        Parameters:
-          - bucketName
-      - Label:
-          default: Applilcation Layer Settings
-        Parameters:
-          - BaseAMI
-          - WebInstanceType
-          - WebAsgMin
-          - WebAsgMax
-          - Key
+Description: ---
 
-      ParameterLabels:
-       VpcId:
-         default: The Vpc ID where this stack deploy
-       bucketName:
-         default: where you upload your cfn
-       Psubnet1:
-         default: Public subnet 1 for ALB
-       Psubnet2:
-         default: Public subnet 2 for ALB
-       subnet1:
-         default: private subnet 1 which web server launching in
-       subnet2:
-         default: private subnet 2 which web server launching in
-       BaseAMI:
-         default: Base AMI which will using by Web server
-       WebInstanceType:
-         default: moodle server size
-       WebAsgMin:
-         default: Specifies the minimum number of EC2 instances in the Web Autoscaling Group
-       WebAsgMax:
-         default: Specifies the maximum number of EC2 instances in the Web Autoscaling Group
-       Key:
-         default: ec2 key
 Parameters:
 
   VpcId:
