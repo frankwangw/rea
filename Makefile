@@ -18,6 +18,7 @@ install:
 	aws cloudformation deploy \
 		--stack-name ${test_stack_name} \
 		--template-file cloudformation/cfn.yml \
+		--region ap-southeast-2 \
 		--parameter-overrides \
 			VpcId=${VpcId} \
 			Psubnet1=${Psubnet1} \
